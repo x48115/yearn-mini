@@ -1,0 +1,155 @@
+<html>
+  <head>
+    <title>Yearn-mini</title>
+    <link rel="stylesheet" href="styles.css"></link>
+    <meta content="text/html;charset=utf-8" http-equiv="Content-Type">
+    <script src="./web3.min.js"></script>
+    <script src="./bignumber.min.js"></script>
+  </head>
+  <body>
+    <script>
+    const alchemyKey = 'Fzjec9nubY8kwQ7KyCdW--u3B8swwNSg';      // Your Alchemy Key 
+    // OR
+    const infuraProjectId = ''; // Your Infura Project ID - DO NOT USE, WON'T WORK
+
+    class BigNumber {
+        static DECIMALS = 18;
+        static ROUNDED = false;
+        static SHIFT = BigInt("1" + "0".repeat(BigNumber.DECIMALS));
+        constructor(value) {
+            if (value instanceof BigNumber) return value;
+            let [ints, decis] = String(value).split(".").concat("");
+            this._n = BigInt(ints + decis.padEnd(BigNumber.DECIMALS, "0")
+                                        .slice(0, BigNumber.DECIMALS)) 
+                    + BigInt(BigNumber.ROUNDED && decis[BigNumber.DECIMALS] >= "5");
+        }
+        static fromBigInt(bigint) {
+            return Object.assign(Object.create(BigNumber.prototype), { _n: bigint });
+        }
+        add(num) {
+            return BigNumber.fromBigInt(this._n + new BigNumber(num)._n);
+        }
+        subtract(num) {
+            return BigNumber.fromBigInt(this._n - new BigNumber(num)._n);
+        }
+        static _divRound(dividend, divisor) {
+            return BigNumber.fromBigInt(dividend / divisor 
+                + (BigNumber.ROUNDED ? dividend  * 2n / divisor % 2n : 0n));
+        }
+        times(num) {
+            return BigNumber._divRound(this._n * new BigNumber(num)._n, BigNumber.SHIFT);
+        }
+        dividedBy(num) {
+            return BigNumber._divRound(this._n * BigNumber.SHIFT, new BigNumber(num)._n);
+        }
+        toString() {
+            const s = this._n.toString().padStart(BigNumber.DECIMALS+1, "0");
+            return s.slice(0, -BigNumber.DECIMALS);
+        }
+    }
+    
+    const maxUint256 = "115792089237316195423570985008687907853269984665640564039457584007913129639935";
+    const alchemyUrl = alchemyKey != ''?('https://eth-mainnet.alchemyapi.io/v2/' + alchemyKey):null;
+    const infuraUrl = infuraProjectId != ''?('https://mainnet.infura.io/v3/' + infuraProjectId):null;
+
+    const web3 = new Web3(Web3.givenProvider || alchemyUrl || infuraUrl);
+    
+    const registryAdapterAbi = [{"inputs":[{"internalType":"address[]","name":"_assetsAddresses","type":"address[]"}],"name":"assetsStatic","outputs":[{"components":[{"internalType":"address","name":"id","type":"address"},{"internalType":"string","name":"typeId","type":"string"},{"internalType":"address","name":"tokenId","type":"address"},{"internalType":"string","name":"name","type":"string"},{"internalType":"string","name":"version","type":"string"},{"internalType":"string","name":"symbol","type":"string"},{"internalType":"uint8","name":"decimals","type":"uint8"}],"internalType":"struct RegisteryAdapterV2Vaults.AssetStatic[]","name":"","type":"tuple[]"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"assetsAddresses","outputs":[{"internalType":"address[]","name":"","type":"address[]"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"assetsTokensAddresses","outputs":[{"internalType":"address[]","name":"","type":"address[]"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address[]","name":"_assetsAddresses","type":"address[]"}],"name":"assetsDynamic","outputs":[{"components":[{"internalType":"address","name":"id","type":"address"},{"internalType":"string","name":"typeId","type":"string"},{"internalType":"address","name":"tokenId","type":"address"},{"components":[{"internalType":"uint256","name":"amount","type":"uint256"},{"internalType":"uint256","name":"amountUsdc","type":"uint256"}],"internalType":"struct RegisteryAdapterV2Vaults.TokenAmount","name":"underlyingTokenBalance","type":"tuple"},{"components":[{"internalType":"uint256","name":"pricePerShare","type":"uint256"},{"internalType":"bool","name":"migrationAvailable","type":"bool"},{"internalType":"address","name":"latestVaultAddress","type":"address"},{"internalType":"uint256","name":"depositLimit","type":"uint256"},{"internalType":"bool","name":"emergencyShutdown","type":"bool"}],"internalType":"struct RegisteryAdapterV2Vaults.AssetMetadata","name":"metadata","type":"tuple"}],"internalType":"struct RegisteryAdapterV2Vaults.AssetDynamic[]","name":"","type":"tuple[]"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"accountAddress","type":"address"},{"internalType":"address[]","name":"_assetsAddresses","type":"address[]"}],"name":"assetsPositionsOf","outputs":[{"components":[{"internalType":"address","name":"assetId","type":"address"},{"internalType":"address","name":"tokenId","type":"address"},{"internalType":"string","name":"typeId","type":"string"},{"internalType":"uint256","name":"balance","type":"uint256"},{"components":[{"internalType":"uint256","name":"amount","type":"uint256"},{"internalType":"uint256","name":"amountUsdc","type":"uint256"}],"internalType":"struct RegisteryAdapterV2Vaults.TokenAmount","name":"underlyingTokenBalance","type":"tuple"},{"components":[{"internalType":"address","name":"owner","type":"address"},{"internalType":"address","name":"spender","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"}],"internalType":"struct RegisteryAdapterV2Vaults.Allowance[]","name":"tokenAllowances","type":"tuple[]"},{"components":[{"internalType":"address","name":"owner","type":"address"},{"internalType":"address","name":"spender","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"}],"internalType":"struct RegisteryAdapterV2Vaults.Allowance[]","name":"assetAllowances","type":"tuple[]"}],"internalType":"struct RegisteryAdapterV2Vaults.Position[]","name":"","type":"tuple[]"}],"stateMutability":"view","type":"function"}];
+    const balancesHelperAbi = [{"inputs":[{"internalType":"address","name":"accountAddress","type":"address"},{"internalType":"address[]","name":"tokensAddresses","type":"address[]"}],"name":"tokensBalances","outputs":[{"components":[{"internalType":"address","name":"tokenId","type":"address"},{"internalType":"uint256","name":"priceUsdc","type":"uint256"},{"internalType":"uint256","name":"balance","type":"uint256"},{"internalType":"uint256","name":"balanceUsdc","type":"uint256"}],"internalType":"struct BalancesHelper.TokenBalance[]","name":"","type":"tuple[]"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address[]","name":"tokensAddresses","type":"address[]"}],"name":"tokensMetadata","outputs":[{"components":[{"internalType":"address","name":"id","type":"address"},{"internalType":"string","name":"name","type":"string"},{"internalType":"string","name":"symbol","type":"string"},{"internalType":"uint8","name":"decimals","type":"uint8"}],"internalType":"struct TokenMetadata[]","name":"","type":"tuple[]"}],"stateMutability":"view","type":"function"}];
+    const vaultAbi = [{"constant":true,"inputs":[{"internalType":"address","name":"owner","type":"address"},{"internalType":"address","name":"spender","type":"address"}],"name":"allowance","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"internalType":"address","name":"spender","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"approve","outputs":[{"internalType":"bool","name":"","type":"bool"}],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"internalType":"uint256","name":"_amount","type":"uint256"}],"name":"deposit","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"internalType":"uint256","name":"_shares","type":"uint256"}],"name":"withdraw","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"}];
+    const registryAdapterAddress = '0x240315db938d44bb124ae619f5Fd0269A02d1271';
+    const balancesHelperAddress = '0x855ffe28019106d089bC018Df18838f8d241c402';
+    
+    
+    
+    let account, registryAdapterContract, balancesHelperContract, assets, assetsStatic, assetsDynamic, assestsPositionsOf, tokensMetadata, tokensBalances, tokens;
+    const findAssetByUnderlyingTokenId = tokenId => assets.find(asset => asset.tokenId === tokenId);
+    const findToken = id => tokens.find(token => token.id === id);
+    const loadChunkedData = async (contract, addresses, chunkSize, method, args) => {
+      const chunkArray = (input, size) => input.reduce((arr, item, idx) => idx % size === 0 ? [...arr, [item]]: [...arr.slice(0, -1), [...arr.slice(-1)[0], item]], []);      
+      return (await Promise.all(chunkArray(addresses, chunkSize).map(vaultAddressesChunk => args ? contract.methods[method](args, vaultAddressesChunk).call() : contract.methods[method](vaultAddressesChunk).call()))).reduceRight((previousArray, currentArray) => previousArray.concat(currentArray));
+    }
+    const formatCurrency = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2}).format(val);
+    const formatTokenAmount = (amount) => new Intl.NumberFormat("en-US", { minimumFractionDigits: 4 }).format(amount);
+    const loadData = async () => {
+      assetsAddressesPromise = registryAdapterContract.methods.assetsAddresses().call();
+      assetsTokensAddressesPromise = registryAdapterContract.methods.assetsTokensAddresses().call();
+      const [assetsAddresses, assetsTokensAddresses] = await Promise.all([assetsAddressesPromise, assetsTokensAddressesPromise]);
+      [assetsStatic, assetsDynamic, assestsPositionsOf, tokensBalances, tokensMetadata] = await Promise.all([
+        loadChunkedData(registryAdapterContract, assetsAddresses, 40, 'assetsStatic'),
+        loadChunkedData(registryAdapterContract, assetsAddresses, 4, 'assetsDynamic'),
+        loadChunkedData(registryAdapterContract, assetsAddresses, 3, 'assetsPositionsOf', account),
+        loadChunkedData(balancesHelperContract, assetsTokensAddresses, 4, 'tokensBalances', account),
+        balancesHelperContract.methods.tokensMetadata(assetsTokensAddresses).call()
+      ]);
+      tokens = tokensMetadata.map((tokenMetadata) => Object.assign({}, tokenMetadata, tokensBalances.find(tokenBalance => tokenBalance.tokenId === tokenMetadata.id)));
+      assets = assetsStatic.map((assetStatic) => Object.assign({}, assetStatic, assetsDynamic.find(assetDynamic => assetDynamic.id === assetStatic.id))).filter(asset => !asset.metadata.migrationAvailable);
+      const walletEls = tokens.reduce((acc, token) => {
+        if (token.balanceUsdc > 0) acc += `<tr><td>${token.symbol}</td><td>${formatTokenAmount(token.balance / 10**token.decimals)}</td><td>${formatCurrency(token.balanceUsdc / 10**6)}</td><td><button onClick="deposit('${token.id}')">deposit</button></td></tr>`
+        return acc;
+      }, []);
+      const positionsRows = assestsPositionsOf.reduce((acc, position) => acc += `<tr><td>${findToken(position.tokenId).symbol}</td><td>${formatTokenAmount(position.underlyingTokenBalance.amount / 10**findToken(position.tokenId).decimals)}</td><td>${formatCurrency(position.underlyingTokenBalance.amountUsdc / 10**6)}</td><td><button onClick="withdraw('${position.assetId}')">withdraw</button></td></tr>`, '');
+      const positionsEls = `<h2>Your Deposits</h2><table><thead><th>Name</th><th>Tokens</th><th>Value</th><th></th></thead><tbody>${positionsRows}</tbody></table>`;
+      if (positionsRows) document.getElementById('deposits').setAttribute('style', 'display: inherit');
+      const assetsEls = assets.reduce((acc, asset) => acc += `<tr><td>${findToken(asset.tokenId).symbol}</td><td>${formatTokenAmount(asset.underlyingTokenBalance.amount / 10**findToken(asset.tokenId).decimals)}</td><td>${formatCurrency(asset.underlyingTokenBalance.amountUsdc / 10**6)}</td></tr>`, '');
+      document.getElementById('walletRows').innerHTML = walletEls;
+      document.getElementById('deposits').innerHTML = positionsEls;
+      document.getElementById('assetsRows').innerHTML = assetsEls;
+    }
+    const deposit = async (tokenId) => {
+      const assetId = findAssetByUnderlyingTokenId(tokenId).id;
+      const vaultContract = new web3.eth.Contract(vaultAbi, assetId);
+      const tokenContract = new web3.eth.Contract(vaultAbi, tokenId);
+      const allowance = await tokenContract.methods.allowance(account, assetId).call();
+      const token = findToken(tokenId);
+      if (allowance !== maxUint256) {
+        if(!confirm(`Allow "${findAssetByUnderlyingTokenId(tokenId).symbol}" to spend your "${token.symbol}" token?`)) return;
+        const gasLimit = await vaultContract.methods.approve(assetId, maxUint256).estimateGas({ from: account });
+        await tokenContract.methods.approve(assetId, maxUint256).send({from: account,gas: gasLimit});
+      }
+      const amountStr = prompt(`Enter amount of "${token.symbol}" to deposit or type "all" to deposit all\r\n\r\nWallet (max): ${token.balance / 10**token.decimals}`)
+      const amount = amountStr === "all" ? new BigNumber(token.balance).toString() : new BigNumber(amountStr).times(10**token.decimals).toString();
+      console.log(amount, amount);
+      const gasLimit = await vaultContract.methods.deposit(amount).estimateGas({ from: account });
+      await vaultContract.methods.deposit(amount).send({from: account,gas: gasLimit});
+      loadData();
+    }
+    const withdraw = async (assetId) => {
+      const position = assestsPositionsOf.find(assetPosition => assetPosition.assetId === assetId);
+      const vaultContract = new web3.eth.Contract(vaultAbi, assetId);
+      const amountStr = prompt(`Enter enter the percentage of your shares you wish to withdraw (0-100)`);
+      if (!amountStr) return;
+      const amount = new BigNumber(position.balance).times(amountStr / 100).toFixed(0);
+      const gasLimit = await vaultContract.methods.withdraw(amount).estimateGas({ from: account });
+      await vaultContract.methods.withdraw(amount).send({from: account,gas: gasLimit});
+      loadData();
+    }
+    window.onload = async () => {
+      if (window.ethereum) {
+        try {
+          window.ethereum.request({ method: 'eth_requestAccounts' }).then(
+            function(wallets) {
+              account = wallets[0];
+              registryAdapterContract = new web3.eth.Contract(registryAdapterAbi, registryAdapterAddress);
+              balancesHelperContract = new web3.eth.Contract(balancesHelperAbi, balancesHelperAddress);
+              loadData();
+            }
+          );
+          
+        } catch (error) {
+          if (error.code === 4001) {
+            alert('rejected');// User rejected request
+          }
+        }
+      } else alert('No web3 support :(\r\n\r\nTry running this file using: python -m http.server 8080');
+    };
+    </script>
+    <div class="header">yearn-mini</div>
+      <h2>Your Wallet</h2>
+      <div class="wallet"><table><thead><th>Name</th><th>Tokens</th><th>Value</th><th></th></thead><tbody id="walletRows"></tbody></table></div>
+      <div id="deposits"></div>
+      <h2>All Vaults</h2>
+      <table><thead><th>Name</th><th>Tokens</th><th>Value</th><th></th></thead><tbody id="assetsRows"></tbody></table>
+    </div>
+  </body>
+</html>
